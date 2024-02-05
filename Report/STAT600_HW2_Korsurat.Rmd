@@ -13,7 +13,8 @@ library(RcppArmadillo)
 library(ggplot2)
 library(latex2exp)
 
-path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
+# path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
+path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
 sourceCpp(paste0(path, "main.cpp"))
 ```
 
@@ -40,7 +41,7 @@ l'\left(\theta\right) &= \frac{d}{d\theta}l\left(\theta\right) \\
 &= 2\sum_{i=1}^{n}\frac{x_{i} - \theta}{1 + \left(x_{i} - \theta\right)^{2}}
 \end{aligned}$$
 
-```{r}
+```{r, fig.cap = "The plot of the derivative of the log-likelihood on the original dataset."}
 dat <- c(-8.86, -6.82, -4.03, -2.84, 0.14, 0.19, 0.24, 0.27, 0.49, 0.62, 0.76, 1.09,
          1.18, 1.32, 1.36, 1.58, 1.58, 1.78, 2.13, 2.15, 2.36, 4.05, 4.11, 4.12, 
          6.83)
@@ -49,7 +50,23 @@ data.frame(theta = rangeTheta, dll = sapply(rangeTheta, dloglik, x = dat)) %>%
   ggplot(aes(x = theta, y = dll)) +
   geom_line() +
   theme_bw() +
-  labs(x = TeX("\\theta"), y = TeX("l'(\\theta)"))
+  labs(x = TeX("\\theta"), y = TeX("l'(\\theta)"), 
+       title = "The plot of the derivative of the log-likelihood based on 25 daat points")
 ```
 
+### (b)
+
+This is the second derivation for the log-likelihood function.
+
+$$\begin{aligned}
+l''\left(\theta\right) &= \frac{d}{d\theta}l'\left(\theta\right) \\
+&= \frac{d}{d\theta} 2\sum_{i=1}^{n}\frac{x_{i} - \theta}{1 + \left(x_{i} - \theta\right)^{2}} \\
+&= 2 \sum_{i=1}^{n} \frac{d}{d\theta} \frac{x_{i} - \theta}{1 + \left(x_{i} - \theta\right)^{2}} \\
+&= 2 \sum_{i=1}^{n} \frac{-1 + \left(x_{i} - \theta\right)^{2}}{\left(1 + \left(x_{i} - \theta\right)^{2}\right)^{2}}
+\end{aligned}$$
+
+
+### (d)
+
+For the convergence criteria used in this problem, I decided to employ the absolute convergence criterion, as the $x^{(t)}$ might be close to 0 in some iterations, as indicated by the plot shown in part (a). Additionally, the value of x is neither too tiny nor too huge compared to $\epsilon$.
 
