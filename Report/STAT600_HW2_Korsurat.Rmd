@@ -8,15 +8,18 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(knitr)
 library(Rcpp)
 library(RcppArmadillo)
 library(ggplot2)
 library(latex2exp)
 
-# path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
-path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
+path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
+# path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
 sourceCpp(paste0(path, "main.cpp"))
 ```
+
+All Rcpp/RcppArmadillo can be found in my [GitHub](https://github.com/skorsu/HW2Optim).
 
 ## Question 1
 
@@ -65,8 +68,62 @@ l''\left(\theta\right) &= \frac{d}{d\theta}l'\left(\theta\right) \\
 &= 2 \sum_{i=1}^{n} \frac{-1 + \left(x_{i} - \theta\right)^{2}}{\left(1 + \left(x_{i} - \theta\right)^{2}\right)^{2}}
 \end{aligned}$$
 
+### (c)
+
+Below are the result from each methods. Note that I have set the $\epsilon$ to be $1 \times 10^{-5}$.
+
+```{r}
+### Run all methods
+eps_set <- 1e-5
+bs_dat <- bisect_q1(min(dat), max(dat), dat, eps = eps_set)
+nr_dat <- nr_q1(x0 = 0, dat = dat, eps = eps_set)
+fs_dat <- fs_q1(x0 = 0, dat = dat, eps = eps_set)
+sc_dat <- sc_q1(x0 = 0, x1 = 1e-5, dat = dat, eps = eps_set)
+
+### Create the table
+data.frame(theta = c(bs_dat$xt, nr_dat$xt, fs_dat$xt, sc_dat$xt), 
+           iter = c(bs_dat$n_iter, nr_dat$n_iter, fs_dat$n_iter, sc_dat$n_iter)) %>%
+  `rownames<-`(c("Bisection", "Newton-Raphson", "Fisher Scoring", "Secant Method")) %>%
+  kable(digits = 5, col.names = c("$\\hat\\theta$", "Number of iteration"),
+        caption = "The result from each methods with only 25 observations.") 
+```
+
 
 ### (d)
 
 For the convergence criteria used in this problem, I decided to employ the absolute convergence criterion, as the $x^{(t)}$ might be close to 0 in some iterations, as indicated by the plot shown in part (a). Additionally, the value of x is neither too tiny nor too huge compared to $\epsilon$.
+
+### (e)
+
+### (f)
+
+### (g)
+```{r}
+add_dat <- c(-8.34, -1.73, -0.40, -0.24, 0.60, 0.94, 1.05, 1.06, 1.45, 1.50, 
+             1.54, 1.72, 1.74, 1.88, 2.04, 2.16, 2.39, 3.01, 3.01, 3.08, 4.66,
+             4.99, 6.01, 7.06, 25.45)
+
+### Run all methods with complete data
+eps_set <- 1e-5
+bs_cdat <- bisect_q1(min(c(dat, add_dat)), max(c(dat, add_dat)), dat = c(dat, add_dat), eps = eps_set)
+nr_cdat <- nr_q1(x0 = 0.5, dat = c(dat, add_dat), eps = eps_set)
+fs_cdat <- fs_q1(x0 = 0.5, dat = c(dat, add_dat), eps = eps_set)
+sc_cdat <- sc_q1(x0 = 0, x1 = 0.5, dat = c(dat, add_dat), eps = eps_set)
+
+### Create the table
+data.frame(theta = c(bs_cdat$xt, nr_cdat$xt, fs_cdat$xt, sc_cdat$xt), 
+           iter = c(bs_cdat$n_iter, nr_cdat$n_iter, fs_cdat$n_iter, sc_cdat$n_iter)) %>%
+  `rownames<-`(c("Bisection", "Newton-Raphson", "Fisher Scoring", "Secant Method")) %>%
+  kable(digits = 5, col.names = c("$\\hat\\theta$", "Number of iteration"),
+        caption = "The result from each methods with all 50 observations.") 
+```
+
+
+
+
+
+
+
+
+
 
