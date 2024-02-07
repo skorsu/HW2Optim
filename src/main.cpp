@@ -1,6 +1,17 @@
 #include "RcppArmadillo.h"
+#define pi 3.141592653589793238462643383280
 
 // [[Rcpp::depends(RcppArmadillo)]]
+
+// [[Rcpp::export]]
+double loglik(arma::vec x, double theta){
+  
+  double result = 0.0;
+  result -= arma::accu(arma::log(1 + arma::pow(x - theta, 2.0)));
+  result -= (x.size() * std::log(pi));
+  return result;
+  
+}
 
 // [[Rcpp::export]]
 double dloglik(arma::vec x, double theta){
@@ -32,32 +43,34 @@ bool conv_crit(double x_old, double x_new, double eps){
 Rcpp::List bisect_q1(double a_init, double b_init, arma::vec dat,
                      double eps){
   
-  unsigned int iter = 0; // Iteration Counter 
-  double xt = (a_init + b_init)/2.0; // Initialize x0
-  double x_new = xt + eps + 1; // Initialize the x_new. Just a dummy one in order to let them pass the while criteria
+  double a = a_init;
+  double b = b_init;
   
-  // Start the bisectioon method
+  // First Iteration
+  unsigned int iter = 1; // Iteration Counter 
+  double xt = (a + b)/2.0;
+  double eval_quan = dloglik(dat, a) * dloglik(dat, xt);
+  if(eval_quan <= 0.0){
+    b = xt;
+  } else {
+    a = xt;
+  }
+  double x_new = (a + b)/2.0;
+  
+  // Start the bisection method
   while(! conv_crit(xt, x_new, eps)){
     iter += 1;
-    xt = (a_init + b_init)/2.0; // Propose new xt
-    
-    // Propose a new interval
-    double eval_q = dloglik(dat, a_init);
-    eval_q *= dloglik(dat, xt);
-    
-    if(eval_q <= 0){
-      b_init = xt;
+    xt = x_new;
+    eval_quan = dloglik(dat, a) * dloglik(dat, xt);
+    if(eval_quan <= 0.0){
+      b = xt;
     } else {
-      a_init = xt;
+      a = xt;
     }
-  
-    x_new = (a_init + b_init)/2.0; // Should we stop?
-    
+    x_new = (a + b)/2.0;
   }
   
   Rcpp::List result;
-  result["a"] = a_init;
-  result["b"] = b_init;
   result["xt"] = xt;
   result["n_iter"] = iter;
   return result;
@@ -67,10 +80,8 @@ Rcpp::List bisect_q1(double a_init, double b_init, arma::vec dat,
 // [[Rcpp::export]]
 Rcpp::List nr_q1(double x0, arma::vec dat, double eps){
   
-  unsigned int iter = 0; // Iteration Counter
-  
   // First iteration
-  iter += 1;
+  unsigned int iter = 1; // Iteration Counter
   double xt = x0;
   double x_new = xt - (dloglik(dat, xt)/ddloglik(dat, xt));
   
@@ -78,14 +89,93 @@ Rcpp::List nr_q1(double x0, arma::vec dat, double eps){
     iter += 1;
     xt = x_new;
     x_new = xt - (dloglik(dat, xt)/ddloglik(dat, xt));
-    std::cout << "xt: " << xt << std::endl;
-    std::cout << "x_new: " << x_new << std::endl;
   }
   
   Rcpp::List result;
   result["xt"] = xt;
-  result["iter"] = iter;
+  result["n_iter"] = iter;
   return result;
   
 }
+
+// [[Rcpp::export]]
+Rcpp::List fs_q1(double x0, arma::vec dat, double eps){
+  
+  // First iteration
+  unsigned int iter = 1;
+  double xt = x0;
+  double fisher = -ddloglik(dat, xt);
+  double x_new = xt + (dloglik(dat, xt) * (1/fisher));
+  
+  while(! conv_crit(xt, x_new, eps)){
+    iter += 1;
+    xt = x_new;
+    fisher = -ddloglik(dat, xt);
+    x_new = xt + (dloglik(dat, xt) * (1/fisher));
+  }
+  
+  Rcpp::List result;
+  result["xt"] = xt;
+  result["n_iter"] = iter;
+  return result;
+  
+}
+
+// [[Rcpp::export]]
+Rcpp::List sc_q1(double x0, double x1, arma::vec dat, double eps){
+  
+  // First iteration
+  unsigned int iter = 1;
+  double x_prev = x0;
+  double x_now = x1;
+  double x_new = x_now - (dloglik(dat, x_now) * ((x_now - x_prev)/(dloglik(dat, x_now) - dloglik(dat, x_prev))));
+  
+  while(! conv_crit(x_now, x_new, eps)){
+    iter += 1;
+    x_prev = x_now;
+    x_now = x_new;
+    x_new = x_now - dloglik(dat, x_now) * ((x_now - x_prev)/(dloglik(dat, x_now) - dloglik(dat, x_prev)));
+  }
+  
+  Rcpp::List result;
+  result["xt"] = x_now;
+  result["n_iter"] = iter;
+  return result;
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
