@@ -60,3 +60,23 @@ apply(data.frame(expand.grid(seq(-1, 1, 0.01), seq(-1, 1, 0.01))), 1,
 
 sapply(seq(-10, 10, 0.01), ddloglik, x = c(dat, add_dat)) %>%
   plot(x = seq(-10, 10, 0.01), type = "l")
+
+### Q3
+designMat <- rbind(c(1, 1, 0, 1), c(0, 1, 0, 1), c(1, 1, 2, 1), c(0, 1, 2, 1), 
+                   c(1, 1, 4, 1), c(0, 1, 4, 1), c(1, 1, 5, 1), c(0, 1, 5, 1),
+                   c(1, 1, 0, 0), c(0, 1, 0, 0), c(1, 1, 2, 0), c(0, 1, 2, 0), 
+                   c(1, 1, 4, 0), c(0, 1, 4, 0), c(1, 1, 5, 0), c(0, 1, 5, 0)) %>%
+  as.matrix()
+
+repTime <- c(9, 41 - 9, 94, 213 - 94, 53, 127 - 53, 60, 142 - 60,
+             11, 67 - 11, 59, 211- 59, 53, 133 - 53, 28, 76 - 28)
+
+designMat <- designMat[rep(1:nrow(designMat), times = repTime), ]
+
+test <- optimQ3(desMat = designMat[, -1], Y = designMat[, 1],
+                b0 = c(0, 0, 0), eps = 1e-10)
+test$iter
+
+
+mod <- glm(designMat[, 1] ~ designMat[, 3:4], family=binomial(link='logit'))
+summary(mod) %>% names()

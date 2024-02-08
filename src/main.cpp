@@ -144,7 +144,36 @@ Rcpp::List sc_q1(double x0, double x1, arma::vec dat, double eps){
   
 }
 
+// [[Rcpp::export]]
+Rcpp::List optimQ3(arma::mat desMat, arma::vec Y, arma::vec b0, double eps){
+  
+  unsigned int iter = 1;
+  arma::vec bt = b0;
+  arma::vec xbeta = desMat * bt;
+  arma::vec yhat = arma::exp(xbeta)/(1 + arma::exp(xbeta));;
+  arma::mat W = arma::diagmat(arma::exp(xbeta)/arma::pow(1 + arma::exp(xbeta), 2.0));
+  arma::mat invH = -arma::solve(desMat.t() * W * desMat, arma::eye(3, 3));
+  arma::vec res = Y - yhat;
+  arma::vec b_new = bt - (invH * desMat.t() * res);
+  
+  while(arma::norm(b_new - bt, 2) >= eps){
+    iter += 1;
+    bt = b_new;
+    xbeta = desMat * bt;
+    yhat = arma::exp(xbeta)/(1 + arma::exp(xbeta));;
+    W = arma::diagmat(arma::exp(xbeta)/arma::pow(1 + arma::exp(xbeta), 2.0));
+    invH = -arma::solve(desMat.t() * W * desMat, arma::eye(3, 3));
+    res = Y - yhat;
+    b_new = bt - (invH * desMat.t() * res);
+  }
 
+  Rcpp::List result;
+  result["iter"] = iter;
+  result["bt"] = bt;
+  result["W"] = W;
+  return result;
+  
+}
 
 
 
