@@ -4,16 +4,6 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 
 // [[Rcpp::export]]
-double loglik(arma::vec x, double theta){
-  
-  double result = 0.0;
-  result -= arma::accu(arma::log(1 + arma::pow(x - theta, 2.0)));
-  result -= (x.size() * std::log(pi));
-  return result;
-  
-}
-
-// [[Rcpp::export]]
 double dloglik(arma::vec x, double theta){
   
   double result = 0.0;
@@ -158,6 +148,11 @@ Rcpp::List optimQ3(arma::mat desMat, arma::vec Y, arma::vec b0, double eps){
   
   while(arma::norm(b_new - bt, 2) >= eps){
     iter += 1;
+    
+    if(iter == 1000){
+      Rcpp::stop("The result does not converge.");
+    }
+    
     bt = b_new;
     xbeta = desMat * bt;
     yhat = arma::exp(xbeta)/(1 + arma::exp(xbeta));;
@@ -174,37 +169,3 @@ Rcpp::List optimQ3(arma::mat desMat, arma::vec Y, arma::vec b0, double eps){
   return result;
   
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
