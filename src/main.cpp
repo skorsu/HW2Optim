@@ -50,6 +50,11 @@ Rcpp::List bisect_q1(double a_init, double b_init, arma::vec dat,
   // Start the bisection method
   while(! conv_crit(xt, x_new, eps)){
     iter += 1;
+    
+    if(iter == 100){
+      Rcpp::stop("The result does not converge.");
+    }
+    
     xt = x_new;
     eval_quan = dloglik(dat, a) * dloglik(dat, xt);
     if(eval_quan <= 0.0){
@@ -77,6 +82,11 @@ Rcpp::List nr_q1(double x0, arma::vec dat, double eps){
   
   while(! conv_crit(xt, x_new, eps)){
     iter += 1;
+    
+    if(iter == 100){
+      Rcpp::stop("The result does not converge.");
+    }
+    
     xt = x_new;
     x_new = xt - (dloglik(dat, xt)/ddloglik(dat, xt));
   }
@@ -94,14 +104,19 @@ Rcpp::List fs_q1(double x0, arma::vec dat, double eps){
   // First iteration
   unsigned int iter = 1;
   double xt = x0;
-  double fisher = -ddloglik(dat, xt);
+  double fisher = dat.n_rows/2.0;
   double x_new = xt + (dloglik(dat, xt) * (1/fisher));
   
   while(! conv_crit(xt, x_new, eps)){
     iter += 1;
+    
+    if(iter == 100){
+      Rcpp::stop("The result does not converge.");
+    }
+    
     xt = x_new;
-    fisher = -ddloglik(dat, xt);
     x_new = xt + (dloglik(dat, xt) * (1/fisher));
+    
   }
   
   Rcpp::List result;
@@ -122,6 +137,11 @@ Rcpp::List sc_q1(double x0, double x1, arma::vec dat, double eps){
   
   while(! conv_crit(x_now, x_new, eps)){
     iter += 1;
+    
+    if(iter == 100){
+      Rcpp::stop("The result does not converge.");
+    }
+    
     x_prev = x_now;
     x_now = x_new;
     x_new = x_now - dloglik(dat, x_now) * ((x_now - x_prev)/(dloglik(dat, x_now) - dloglik(dat, x_prev)));
@@ -149,7 +169,7 @@ Rcpp::List optimQ3(arma::mat desMat, arma::vec Y, arma::vec b0, double eps){
   while(arma::norm(b_new - bt, 2) >= eps){
     iter += 1;
     
-    if(iter == 1000){
+    if(iter == 100){
       Rcpp::stop("The result does not converge.");
     }
     
