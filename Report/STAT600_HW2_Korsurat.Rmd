@@ -5,7 +5,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 
 library(tidyverse)
 library(knitr)
@@ -13,13 +13,15 @@ library(Rcpp)
 library(RcppArmadillo)
 library(ggplot2)
 library(latex2exp)
+library(foreach)
+library(doParallel)
 
-# path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
-path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
+path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
+# path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
 sourceCpp(paste0(path, "main.cpp"))
 ```
 
-All Rcpp/RcppArmadillo can be found in my [GitHub](https://github.com/skorsu/HW2Optim).
+All Rcpp/RcppArmadillo can be found in my [\textcolor{red}{GitHub}](https://github.com/skorsu/HW2Optim).
 
 ## Question 1
 
@@ -44,7 +46,12 @@ l'\left(\theta\right) &= \frac{d}{d\theta}l\left(\theta\right) \\
 &= 2\sum_{i=1}^{n}\frac{x_{i} - \theta}{1 + \left(x_{i} - \theta\right)^{2}}
 \end{aligned}$$
 
+The Figure 1 depicts the plot of the derivative of the log-likelihood. According to the plot, we notice that in the range of [-10, 10], the solution to $\frac{d}{d\theta}l\left(\theta\right) = 0$ might be somewhere around 1.
+
 ```{r, fig.cap = "The plot of the derivative of the log-likelihood on the original dataset."}
+
+### Q1 -------------------------------------------------------------------------
+#### Plot the derivative of the log-likelihood
 dat <- c(-8.86, -6.82, -4.03, -2.84, 0.14, 0.19, 0.24, 0.27, 0.49, 0.62, 0.76, 1.09,
          1.18, 1.32, 1.36, 1.58, 1.58, 1.78, 2.13, 2.15, 2.36, 4.05, 4.11, 4.12, 
          6.83)
@@ -57,6 +64,8 @@ data.frame(theta = rangeTheta, dll = sapply(rangeTheta, dloglik, x = dat)) %>%
        title = "The plot of the derivative of the log-likelihood based on 25 daat points")
 ```
 
+\newpage
+
 ### (b)
 
 This is the second derivation for the log-likelihood function.
@@ -68,11 +77,14 @@ l''\left(\theta\right) &= \frac{d}{d\theta}l'\left(\theta\right) \\
 &= 2 \sum_{i=1}^{n} \frac{-1 + \left(x_{i} - \theta\right)^{2}}{\left(1 + \left(x_{i} - \theta\right)^{2}\right)^{2}}
 \end{aligned}$$
 
+For the Fisher's score, it is obviously shows in this [\textcolor{red}{link}](https://www.ma.imperial.ac.uk/~das01/MyWeb/M3S3/Handouts/WorkedExample-Cauchy.pdf) that the Fisher's score is $\frac{n}{2}$.
+
 ### (c)
 
 Below are the result from each methods. Note that I have set the $\epsilon$ to be $1 \times 10^{-5}$.
 
 ```{r}
+
 ### Run all methods
 eps_set <- 1e-5
 bs_dat <- bisect_q1(min(dat), max(dat), dat, eps = eps_set)
@@ -95,11 +107,107 @@ For the convergence criteria used in this problem, I decided to employ the absol
 
 ### (e)
 
+According to the result shown in part (c), I can conclude that $\hat{\theta}$ is 1.1879. For the standard error, we can calculate by using the Fisher's Information. Hence, the standard error is $\sqrt{\frac{2}{25}} = 0.28284$.
+
 ### (f)
+
+According to the plot shown in part (a), I have initialized the starting point as 0 for the Newton-Raphson and Fisher methods, as we expect the final answer to be around 1. For the same reason, I have set $x_{0}$ and $x_{1}$ to be 0 and 1, respectively, for the secant method.
+
+For the bisection method, I have initialized the interval as $\left(\min(\boldsymbol{x}), \max\left(\boldsymbol{x}\right)\right)$, as we believe that the answer must be somewhere in the range of the data.
+
+```{r}
+
+### Run Sensitivity: Bisection
+set.seed(213, kind = "L'Ecuyer-CMRG")
+registerDoParallel(5)
+senBisection <- foreach(t = 1:1000, .combine = rbind) %dopar% {
+  
+  x <- runif(2, -10, 10) * 10
+  algResult <- bisect_q1(min(x), max(x), dat, eps = 1e-5)
+  c(min(x), max(x), algResult$xt, algResult$n_iter)
+  
+}
+stopImplicitCluster()
+```
+
+```{r}
+
+### Run Sensitivity: Bisection
+set.seed(213, kind = "L'Ecuyer-CMRG")
+registerDoParallel(5)
+senBisection <- foreach(t = 1:1000, .combine = rbind) %dopar% {
+  
+  x <- runif(2, -10, 10) * 10
+  algResult <- bisect_q1(min(x), max(x), dat, eps = 1e-5)
+  c(min(x), max(x), algResult$xt, algResult$n_iter)
+  
+}
+stopImplicitCluster()
+```
+
+```{r}
+
+### Run Sensitivity: Newton-Raphson
+set.seed(213, kind = "L'Ecuyer-CMRG")
+registerDoParallel(5)
+senNR <- foreach(t = 1:1000, .combine = rbind) %dopar% {
+  
+  x0init <- runif(1, -1, 1) * 10
+  algResult <- tryCatch(
+        { nr_q1(x0 = x0init, dat = dat, eps = 1e-5) },
+        error = function(cond) {
+          list(xt = NA, n_iter = NA)
+        }
+)
+  c(x0init, algResult$xt, algResult$n_iter)
+  
+}
+stopImplicitCluster()
+```
+
+```{r}
+
+### Run Sensitivity: Fisher Scoring
+set.seed(213, kind = "L'Ecuyer-CMRG")
+registerDoParallel(5)
+senFisher <- foreach(t = 1:1000, .combine = rbind) %dopar% {
+  
+  x0init <- runif(1, -1, 1) * 10
+  algResult <- fs_q1(x0 = x0init, dat = dat, eps = 1e-5)
+  c(x0init, algResult$xt, algResult$n_iter)
+  
+}
+stopImplicitCluster()
+```
+
+```{r}
+
+### Run Sensitivity: Secant
+set.seed(213, kind = "L'Ecuyer-CMRG")
+registerDoParallel(5)
+senSecant <- foreach(t = 1:1000, .combine = rbind) %dopar% {
+  
+  x0init <- runif(1, -1, 1) * 10
+  x1init <- runif(1, -1, 1) * 10
+  algResult <- tryCatch(
+        { sc_q1(x0 = x0init, x1 = x1init, dat = dat, eps = 1e-5) },
+        error = function(cond) {
+          list(xt = NA, n_iter = NA)
+        })
+  c(x0init, x1init, algResult$xt, algResult$n_iter)
+  
+}
+stopImplicitCluster()
+```
+
 
 ### (g)
 
+Below is the result when using all data points.
+
 ```{r}
+
+### Additional data
 add_dat <- c(-8.34, -1.73, -0.40, -0.24, 0.60, 0.94, 1.05, 1.06, 1.45, 1.50, 
              1.54, 1.72, 1.74, 1.88, 2.04, 2.16, 2.39, 3.01, 3.01, 3.08, 4.66,
              4.99, 6.01, 7.06, 25.45)
@@ -119,7 +227,15 @@ data.frame(theta = c(bs_cdat$xt, nr_cdat$xt, fs_cdat$xt, sc_cdat$xt),
         caption = "The result from each methods with all 50 observations.") 
 ```
 
+Similar to the part (e), the standard error, which can be calculated from the Fisher Infomation, is $\sqrt{\frac{2}{50}} = 0.2$.
+
 ## Question 2
+
+According to the book, we know: (1) the limit for solving the rate of convergence of the two-steps secant method is $\lim_{t \rightarrow \infty}\frac{|\epsilon^{(t+2)|}}{|\epsilon^{(t)}|^{\beta}}$. (2) $\epsilon^{(t+2)} \approx d^{(t)}\epsilon^{(t+1)}\epsilon^{(t)}$ where $d^{(t)} \rightarrow \frac{g^{(3)}(x_{*})}{2g''(x_{*})}$.
+
+We know that, for the Newton-Raphson method, we have $\frac{\epsilon^{(t+1)}}{(\epsilon^{(t)})^2} \rightarrow \frac{g^{(3)}(x_{*})}{2g''(x_{*})}$, while we have $\frac{\epsilon^{(t+2)}}{\epsilon^{(t+1)}\epsilon^{(t)}} \rightarrow \frac{g^{(3)}(x_{*})}{2g''(x_{*})}$ for the two-step secant method.
+
+Since $\epsilon^{(t + 1)} < \epsilon^{(t)}$, then we have $\epsilon^{(t + 1)}\epsilon^{(t)} < (\epsilon^{(t)})^2$, lead to the conclusion that $\beta_{\text{NR}} < \beta_{\text{2-step SC}}$.
 
 ## Question 3
 
@@ -181,12 +297,17 @@ designMat <- designMat[rep(1:nrow(designMat), times = repTime), ]
 ### Run the optimization
 resultQ3 <- optimQ3(desMat = designMat[, -1], Y = designMat[, 1],
                     b0 = c(0, 0, 0), eps = 1e-10)
-resultQ3$bt
 ```
+
+The stopping criteria for the optimization is that we will say that the result is converged if the Euclidean distance between $\boldsymbol{b}_{t}$ and $\boldsymbol{b}_{t-1}$ less than $\epsilon$. I have set the $\epsilon$ to be $1 \times 10^{-10}$ and let $\boldsymbol{b}_{0}$ to be $\left[0, 0, 0\right]^{T}$.
+
+The result from the optimization shows that the logistic regression is $\log\left(\frac{\hat{p}}{1-\hat{p}}\right) = -1.1878 + 0.1382 x_{i, \text{coffee}} + 0.3973 x_{i, \text{gender}}$. Besides, the algorithm use 5 iterations until the result converges. Note than $x_{i, \text{gender}} = 1$ refers to male, and 0 for female.
 
 ### (c)
 
-```{r}
+Figure 2 shows the estimated probability of getting cancer, which is calculated from the estimated model in part (b). We can calculated the probability by using $\frac{\exp\left(\boldsymbol{x\hat{\beta}}\right)}{1 + \exp\left(\boldsymbol{x\hat{\beta}}\right)}$.
+
+```{r, fig.cap = "The estimated probability of getting the cancer for each gender"}
 
 ### Plot
 designMatPred <- rbind(c(1, 0, 1), c(1, 2, 1), c(1, 4, 1), c(1, 5, 1), 
@@ -195,23 +316,48 @@ designMatPred <- rbind(c(1, 0, 1), c(1, 2, 1), c(1, 4, 1), c(1, 5, 1),
 
 data.frame(designMatPred[, -1], 
            p = exp(designMatPred %*% resultQ3$bt)/(1 + exp(designMatPred %*% resultQ3$bt))) %>%
-  ggplot(aes(x = X1, y = p, color = factor(X2))) +
+  ggplot(aes(x = X1, y = p, color = factor(X2, labels = c("Female", "Male")))) +
   geom_point() +
   geom_line() +
+  ylim(0, 0.5) +
   theme_bw() +
-  labs(x = "Coffe Consumed", y = "Probability of getting ")
+  labs(x = "Coffee Consumed", y = "Probability of getting cancer",
+       color = "Gender", title = "Estimated Probability of getting cancer for each gender") + 
+  scale_color_manual(values=c("hotpink1", "royalblue2"))
 
 ```
 
+According to the model, we can interpret in terms of log odds ratio or the odds. Below are the interpretation in both ways:
+
+  - For the same coffee level consumption, we expected to see the log odd ratio for male is higher than females around 0.3973
+  - The odds of male getting the cancer is higher than the females by 1.4878 times given that these two people have the same level of the coffee assumption.
+
+Therefore, we can say that if we compare the chances of a man developing cancer to a woman, and both are drinking the same amount of coffee, the odds of the man getting cancer are about 1.4878 times higher than the odds for the woman. The plot also shows the similar result in term of the probability. It suggests that, with the same coffee consumption, men may have a somewhat higher probability of developing cancer compared to women.
 
 ### (d)
 
+In this question, we would like to test that $H_{0}: \beta_{j} = 0$ for $j= 1, 2, 3$. We can use z-statistics to test these null hypothesis.
+
+First, we need to calculate $z_{j} = \frac{\hat{b}_{j}}{\hat{\sigma}_{j}}$. We will use $b^{(t)}_{j}$ as $\hat{b}_{j}$. For the $\hat{\sigma}_{j}$, we can get it by first calculating $\left(\boldsymbol{X}^{T}\boldsymbol{W}\boldsymbol{X}\right)^{-1}$ where $\boldsymbol{W}$ is the result from the optimization. Then, $\hat{\sigma}$ are a square root of the diagonal elements.
+
 ```{r}
+
+### Calculate the test statistics for testing H0: beta = 0
 est_SD <- sqrt(diag(solve(t(designMat[, -1]) %*% resultQ3$W %*% designMat[, -1])))
 z_stat <- (resultQ3$bt - 0)/est_SD
 
 ### Compare with z-statistics
-(qnorm(0.05/2) <= z_stat) & (z_stat <= qnorm(1 - (0.05/2))) ## If TRUE, FTR H0
+# (qnorm(0.05/2) <= z_stat) & (z_stat <= qnorm(1 - (0.05/2))) ## If TRUE, FTR H0
 ```
 
+Therefore, we have $z_{1} = -7.5508, z_{2} = 3.2368, z_{3} = 2.9714$. We will reject $H_{0}: \beta_{j} = 0$ if $|z_{j}| > z_{1- \frac{0.05}{2}}$ where $z_{1- \frac{0.05}{2}} = 1.96$.
 
+According to the result, we notice that we reject $H_{0}$ for all coefficients. Hence, we can conclude that all regression coefficients are significantly different from 0.
+
+\newpage
+
+## Appendix
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE} 
+
+```
