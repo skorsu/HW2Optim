@@ -14,8 +14,8 @@ library(RcppArmadillo)
 library(ggplot2)
 library(latex2exp)
 
-path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
-# path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
+# path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
+path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
 sourceCpp(paste0(path, "main.cpp"))
 ```
 
@@ -160,6 +160,8 @@ Similarly, we can rewite the Hessian matrix in the matrix form as $H\left(\bolds
 By applying the Newton-Ralphson, we will update the parameters for the iteration t by using $\boldsymbol{\beta}^{(t)} = \boldsymbol{\beta}^{(t - 1)} - \left[H\left(\boldsymbol{\beta}^{(t - 1)}\right)\right]^{-1}\left[\triangledown_{\boldsymbol{\beta}}l\left(\boldsymbol{\beta}^{(t - 1)}\right)\right] = \boldsymbol{\beta}^{(t - 1)} - \left[\boldsymbol{X}^{T}\boldsymbol{W}\boldsymbol{X}\right]^{-1}\boldsymbol{X}^{T}\left(\boldsymbol{Y} - \hat{\boldsymbol{Y}}\right)$.
 
 ```{r}
+
+## Q3 --------------------------------------------------------------------------
 ### Data
 #### yi, intercept, x1 (coffee assumption), x2 (gender)
 designMat <- rbind(c(1, 1, 0, 1), c(0, 1, 0, 1), c(1, 1, 2, 1), c(0, 1, 2, 1), 
@@ -175,11 +177,32 @@ designMat <- designMat[rep(1:nrow(designMat), times = repTime), ]
 ```
 
 ```{r}
+
 ### Run the optimization
 resultQ3 <- optimQ3(desMat = designMat[, -1], Y = designMat[, 1],
                     b0 = c(0, 0, 0), eps = 1e-10)
 resultQ3$bt
 ```
+
+### (c)
+
+```{r}
+
+### Plot
+designMatPred <- rbind(c(1, 0, 1), c(1, 2, 1), c(1, 4, 1), c(1, 5, 1), 
+                       c(1, 0, 0), c(1, 2, 0), c(1, 4, 0), c(1, 5, 0)) %>%
+  as.matrix()
+
+data.frame(designMatPred[, -1], 
+           p = exp(designMatPred %*% resultQ3$bt)/(1 + exp(designMatPred %*% resultQ3$bt))) %>%
+  ggplot(aes(x = X1, y = p, color = factor(X2))) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  labs(x = "Coffe Consumed", y = "Probability of getting ")
+
+```
+
 
 ### (d)
 
