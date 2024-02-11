@@ -16,12 +16,23 @@ library(latex2exp)
 library(foreach)
 library(doParallel)
 
-path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
-# path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
+# path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
+path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
 sourceCpp(paste0(path, "main.cpp"))
 ```
 
 All Rcpp/RcppArmadillo can be found in my [\textcolor{red}{GitHub}](https://github.com/skorsu/HW2Optim).
+
+```{r}
+
+### User-defined functions -----------------------------------------------------
+meanSD <- function(x, dplace = 5){
+  mm <- round(mean(x), digits = dplace)
+  ss <- round(sd(x), digits = dplace)
+  paste0(mm, " (SD = ", ss, ")")
+}
+```
+
 
 ## Question 1
 
@@ -115,20 +126,9 @@ According to the plot shown in part (a), I have initialized the starting point a
 
 For the bisection method, I have initialized the interval as $\left(\min(\boldsymbol{x}), \max\left(\boldsymbol{x}\right)\right)$, as we believe that the answer must be somewhere in the range of the data.
 
-```{r}
+#### Sensitivity Analysis
 
-### Run Sensitivity: Bisection
-set.seed(213, kind = "L'Ecuyer-CMRG")
-registerDoParallel(5)
-senBisection <- foreach(t = 1:1000, .combine = rbind) %dopar% {
-  
-  x <- runif(2, -10, 10) * 10
-  algResult <- bisect_q1(min(x), max(x), dat, eps = 1e-5)
-  c(min(x), max(x), algResult$xt, algResult$n_iter)
-  
-}
-stopImplicitCluster()
-```
+For each method, I will run the algorithm 1,000 times with a random starting point. First, I will consider the bisection method. The way I set the initial interval is by randomly selecting two numbers from Uniform[-10, 10]. I have classified the initial interval into two groups: one covering the median of the data (1.18) and the other not covering the median, as the Maximum Likelihood Estimate (MLE) of $\theta$ is a median. Table 3 shows that regardless of the size of the interval, as long as the initial interval covers the solution $\left(l'(\theta) = 0 \right)$, the algorithm can find the optimal points. The size of the interval is the one that controls the number of iterations. Therefore, I would say that this method is quite sensitive to the initial interval.
 
 ```{r}
 
@@ -137,13 +137,23 @@ set.seed(213, kind = "L'Ecuyer-CMRG")
 registerDoParallel(5)
 senBisection <- foreach(t = 1:1000, .combine = rbind) %dopar% {
   
-  x <- runif(2, -10, 10) * 10
+  x <- runif(2, -10, 10)
   algResult <- bisect_q1(min(x), max(x), dat, eps = 1e-5)
   c(min(x), max(x), algResult$xt, algResult$n_iter)
   
 }
 stopImplicitCluster()
+
+data.frame(senBisection) %>%
+  mutate(coverAns = ifelse(X1 <= 1.18 & 1.18 <= X2, "Cover", "Not Cover")) %>%
+  group_by(coverAns) %>%
+  summarise(optAns = meanSD(X3), Iter = meanSD(X4)) %>%
+  kable(digits = 5, col.names = c("Interval", "Average $\\hat\\theta$", "Average Number of iteration"),
+        caption = "The result of the bisection method classified by the starting interval") 
 ```
+
+
+Next, I will consider the Newton-Raphson method. According to Table 3, I believe the starting point plays an important role. I have sampled the starting point from Uniform[-10, 10]. The results show that if you choose an appropriate starting point, the algorithm will converge to the correct answer. Otherwise, it will not converge. The reason is that for each iteration that we update, the denominator for the step involves the second derivative of the log-likelihood. If the second derivative equals 0, the result will diverge.
 
 ```{r}
 
@@ -152,7 +162,7 @@ set.seed(213, kind = "L'Ecuyer-CMRG")
 registerDoParallel(5)
 senNR <- foreach(t = 1:1000, .combine = rbind) %dopar% {
   
-  x0init <- runif(1, -1, 1) * 10
+  x0init <- runif(1, -10, 10)
   algResult <- tryCatch(
         { nr_q1(x0 = x0init, dat = dat, eps = 1e-5) },
         error = function(cond) {
@@ -163,7 +173,32 @@ senNR <- foreach(t = 1:1000, .combine = rbind) %dopar% {
   
 }
 stopImplicitCluster()
+
+data.frame(senNR) %>%
+  mutate(converge = ifelse(is.na(X2), "No", "Yes")) %>%
+  group_by(converge) %>%
+  summarise(n = n(), x2 = meanSD(X2),  x3 = meanSD(X3)) %>%
+  kable(digits = 5, col.names = c("Convergence", "Frequency", "Average $\\hat\\theta$", "Average Number of iteration"),
+        caption = "The result of the Newton-Raphson method classified by the convergence") 
 ```
+
+Figure 2 reveals that, provided we choose the appropriate starting point, we can still reach the correct answer. The number of iterations does not heavily depend on the starting points. Therefore, the conclusion I would draw for this method is that it is quite sensitive to the choice of starting point. However, if we can figure out the possible range of the appropriate starting point, this algorithm is not sensitive.
+
+```{r, fig.cap = "Optimal point for each starting points via Newton-Raphson method."}
+
+data.frame(senNR) %>%
+  filter(! is.na(X2)) %>%
+  ggplot(aes(x = X1, y = X2, color = factor(X3))) +
+  geom_point() +
+  ylim(1.187, 1.189) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  scale_x_continuous(breaks = seq(-10, 10, by = 1)) +
+  labs(color = "Number of iterations", x = TeX("Starting point ($x_{0}$)"),
+       y = TeX("$\\hat{\\theta}$"), 
+       title = "The optimal point for each possible starting pont via Newton-Raphson Method")
+```
+
 
 ```{r}
 
@@ -305,7 +340,7 @@ The result from the optimization shows that the logistic regression is $\log\lef
 
 ### (c)
 
-Figure 2 shows the estimated probability of getting cancer, which is calculated from the estimated model in part (b). We can calculated the probability by using $\frac{\exp\left(\boldsymbol{x\hat{\beta}}\right)}{1 + \exp\left(\boldsymbol{x\hat{\beta}}\right)}$.
+Figure 3 shows the estimated probability of getting cancer, which is calculated from the estimated model in part (b). We can calculated the probability by using $\frac{\exp\left(\boldsymbol{x\hat{\beta}}\right)}{1 + \exp\left(\boldsymbol{x\hat{\beta}}\right)}$.
 
 ```{r, fig.cap = "The estimated probability of getting the cancer for each gender"}
 
