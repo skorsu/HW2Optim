@@ -16,8 +16,8 @@ library(latex2exp)
 library(foreach)
 library(doParallel)
 
-# path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
-path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
+path <- "/Users/kevin-imac/Desktop/Github - Repo/HW2Optim/src/"
+# path <- "/Users/kevinkvp/Desktop/Github Repo/HW2Optim/src/"
 sourceCpp(paste0(path, "main.cpp"))
 ```
 
@@ -152,7 +152,6 @@ data.frame(senBisection) %>%
         caption = "The result of the bisection method classified by the starting interval") 
 ```
 
-
 Next, I will consider the Newton-Raphson method. According to Table 3, I believe the starting point plays an important role. I have sampled the starting point from Uniform[-10, 10]. The results show that if you choose an appropriate starting point, the algorithm will converge to the correct answer. Otherwise, it will not converge. The reason is that for each iteration that we update, the denominator for the step involves the second derivative of the log-likelihood. If the second derivative equals 0, the result will diverge.
 
 ```{r}
@@ -199,6 +198,7 @@ data.frame(senNR) %>%
        title = "The optimal point for each possible starting pont via Newton-Raphson Method")
 ```
 
+For the Fisher scoring method, we found that the algorithm always converges to the correct answer, as shown in Table 4. This is in contrast to the Newton-Raphson method, where certain initial values can cause the algorithm to diverge. The reason for this distinction lies in the fact that the denominator for each updating step in the Fisher algorithm is the number of observations, which cannot be zero. Note that I have ranlomly choose the starting pomt from Unif[-10, 10].
 
 ```{r}
 
@@ -207,13 +207,32 @@ set.seed(213, kind = "L'Ecuyer-CMRG")
 registerDoParallel(5)
 senFisher <- foreach(t = 1:1000, .combine = rbind) %dopar% {
   
-  x0init <- runif(1, -1, 1) * 10
+  x0init <- runif(1, -10, 10)
   algResult <- fs_q1(x0 = x0init, dat = dat, eps = 1e-5)
   c(x0init, algResult$xt, algResult$n_iter)
   
 }
 stopImplicitCluster()
+
+data.frame(t(apply(senFisher[, -1], 2, meanSD))) %>%
+  kable(digits = 5, col.names = c("Average $\\hat\\theta$", "Average Number of iteration"),
+        caption = "The result of the Fisher Scoring method")
 ```
+
+Furthermore, Figure 3 illustrates that the farther the starting point is from the optimal value, the more iterations the algorithm might require. Hence, I will conclude that the Fisher scoring method is not sensitive to the starting point.
+
+```{r, fig.cap = "The relationship between the starting point and the number of iteration for the Fisher Scoring method."}
+
+data.frame(senFisher[, -2]) %>%
+  ggplot(aes(x = X1, y = X2)) +
+  geom_point() +
+  geom_vline(xintercept = 1.18) +
+  theme_bw() +
+  labs(title = TeX("The starting point ($x_{0}$) and the number of iterations"),
+       x = TeX("Starting point ($x_{0}$)"), y = "Iteration")
+```
+
+Finally, for the secant method, I sampled two starting points, $x_{0}$ and $x_{1}$, from Unif[-10,10]. The results, as revealed in Table 4, are similar to the Newton-Raphson method; the algorithm converges to the optimal points when provided with good starting points. Figure 4 displays the range of possible starting points that enable the algorithm to converge. Therefore, I would like to conclude that the algorithm is not sensitive when we have good knowledge about the range of plausible starting points. Otherwise, the result is sensitive to the starting point, as the algorithm might not converge.
 
 ```{r}
 
@@ -222,8 +241,8 @@ set.seed(213, kind = "L'Ecuyer-CMRG")
 registerDoParallel(5)
 senSecant <- foreach(t = 1:1000, .combine = rbind) %dopar% {
   
-  x0init <- runif(1, -1, 1) * 10
-  x1init <- runif(1, -1, 1) * 10
+  x0init <- runif(1, -10, 10)
+  x1init <- runif(1, -10, 10)
   algResult <- tryCatch(
         { sc_q1(x0 = x0init, x1 = x1init, dat = dat, eps = 1e-5) },
         error = function(cond) {
@@ -233,6 +252,26 @@ senSecant <- foreach(t = 1:1000, .combine = rbind) %dopar% {
   
 }
 stopImplicitCluster()
+
+data.frame(senSecant) %>%
+  mutate(converge = ifelse(is.na(X3), "No", "Yes")) %>%
+  group_by(converge) %>%
+  summarise(n = n(), x2 = meanSD(X3),  x3 = meanSD(X4)) %>%
+  kable(digits = 5, col.names = c("Convergence", "Frequency", "Average $\\hat\\theta$", "Average Number of iteration"),
+        caption = "The result of the Secant method classified by the convergence") 
+```
+
+```{r, fig.cap = "The plot shows the range of the starting point for the secant method in order to make the algorithm converge."}
+
+data.frame(senSecant) %>%
+  mutate(converge = ifelse(is.na(X3), "No", "Yes")) %>%
+  ggplot(aes(x = X1, y = X2, color = converge)) +
+  geom_point() +
+  scale_color_manual(values = c("grey90", "red")) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(color = "Converged", x = TeX("$x_{0}"), y = TeX("$x_{1}"),
+       title = "The range of the starting point for the secant method.")
 ```
 
 
@@ -340,7 +379,7 @@ The result from the optimization shows that the logistic regression is $\log\lef
 
 ### (c)
 
-Figure 3 shows the estimated probability of getting cancer, which is calculated from the estimated model in part (b). We can calculated the probability by using $\frac{\exp\left(\boldsymbol{x\hat{\beta}}\right)}{1 + \exp\left(\boldsymbol{x\hat{\beta}}\right)}$.
+Figure 5 shows the estimated probability of getting cancer, which is calculated from the estimated model in part (b). We can calculated the probability by using $\frac{\exp\left(\boldsymbol{x\hat{\beta}}\right)}{1 + \exp\left(\boldsymbol{x\hat{\beta}}\right)}$.
 
 ```{r, fig.cap = "The estimated probability of getting the cancer for each gender"}
 
@@ -368,6 +407,13 @@ According to the model, we can interpret in terms of log odds ratio or the odds.
   - The odds of male getting the cancer is higher than the females by 1.4878 times given that these two people have the same level of the coffee assumption.
 
 Therefore, we can say that if we compare the chances of a man developing cancer to a woman, and both are drinking the same amount of coffee, the odds of the man getting cancer are about 1.4878 times higher than the odds for the woman. The plot also shows the similar result in term of the probability. It suggests that, with the same coffee consumption, men may have a somewhat higher probability of developing cancer compared to women.
+
+Also, if we are interested in the coffee consumption, these are the statistical interpretations:
+
+  - For individuals with the same gender (male/female), an increase of one unit in coffee consumption is associated with a 0.1382 increase in the logarithm of the odds ratio for cancer.
+  - For individuals with the same gender, the odds of developing cancer are 1.1482 times higher for those who consume one additional unit of coffee compared to another individual.
+  
+To conclude, if two people have the same gender, and one of them drinks one more cup of coffee than the other, the person who drinks more coffee has about 15% higher odds of developing cancer compared to the person who drinks less coffee.
 
 ### (d)
 
